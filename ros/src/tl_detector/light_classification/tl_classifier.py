@@ -9,12 +9,12 @@ import cv2
 import yaml
 
 from utils import label_map_util
-from utils import visualization_utils as vis_util
+#from utils import visualization_utils as vis_util
 
 class TLClassifier(object):
-    VISUALIZE = False
+    VISUALIZE = True
+
     def __init__(self):
-        
         config_string = rospy.get_param("/traffic_light_config")
         self.config = yaml.safe_load(config_string)
         self.img_width = self.config['camera_info']['image_width']
@@ -48,6 +48,7 @@ class TLClassifier(object):
 
         PATH_TO_CKPT = CLASSIFIER_BASE + '/' + MODEL_NAME + '/' + GRAPH
         PATH_TO_LABELS = CLASSIFIER_BASE + '/label_map.pbtxt'
+
 
         ### Load Tensorflow model graph
         self.detection_graph = tf.Graph()
@@ -115,13 +116,16 @@ class TLClassifier(object):
             - Predicted classified state is the state with the highest
               normalized score.
         """
-        det_scores = { "Green": 0, "Red": 0, "Yellow": 0, "Unknown": 0}
+        det_scores = {"Green": 0, "Red": 0, "Yellow": 0, "Unknown": 0}
 
         det_count = 0
+        
         #rospy.loginfo("num_detections: {}, detection_boxes: {}".format(
-        #    self.num_detections, self.detection_boxes.shape[0]
-        #))
-
+         #   self.num_detections, self.detection_boxes.shape[0]))
+        #rospy.loginfo("Detection scores: {}".format(self.detection_scores))    
+        #rospy.loginfo("Detection classes: {}".format(self.detection_classes))
+        #rospy.loginfo("Category indices: {}".format(self.category_index))
+        
         for i in range(0, self.num_detections):
             if self.detection_scores is not None:
                 det_score = self.detection_scores[i]
@@ -133,6 +137,7 @@ class TLClassifier(object):
 
         max_det_score = 0
         max_det_state = "Unknown"
+        rospy.loginfo(det_scores.keys())
         for key in det_scores.keys():
             # Normalize the scores
             if det_count > 0:
@@ -143,8 +148,8 @@ class TLClassifier(object):
                 max_det_state = key
 
         rospy.loginfo(det_scores)
-        rospy.loginfo("Predicted state: {}   Normalized score: {}".format(
-            max_det_state, max_det_score))
+        rospy.loginfo("Predicted state: {}   Normalized score: {}".format(max_det_state, max_det_score))
+        #rospy.logwarn("Predicted state: {}   Normalized score: {}".format(max_det_state, max_det_score))
         return max_det_state
 
     def save_visualization(self, state, vis):
@@ -167,6 +172,7 @@ class TLClassifier(object):
         self.visualize_image = self.visualize_image[:, :, ::-1]
         cv2.imwrite(pathname, self.visualize_image)
 
+
     def get_classification(self, image):
         """Determines the color of the traffic light in the image
 
@@ -177,7 +183,6 @@ class TLClassifier(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
-        #TODO implement light color prediction
         self.visualize_image = None
         image_np = np.asarray(image, dtype="int32")
         #image_np = np.array(image, dtype="int32").reshape(
@@ -192,6 +197,7 @@ class TLClassifier(object):
 
 
         ### For visualization #######################################
+        '''
         if TLClassifier.VISUALIZE:
             # Save image before applying boxes (Useful for capturing
             # images for augmenting training data)
@@ -211,7 +217,7 @@ class TLClassifier(object):
             self.visualize_image = image_np
             self.save_visualization(predicted_state, 1)
         #############################################################
-
+       '''
 
         if predicted_state == "Red":
             return TrafficLight.RED

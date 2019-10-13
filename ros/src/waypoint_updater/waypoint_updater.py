@@ -24,7 +24,7 @@ as well as to verify your TL classifier.
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
-LOOKAHEAD_WPS = 15 # Number of waypoints we will publish. You can change this number
+LOOKAHEAD_WPS = 50 # Number of waypoints we will publish. You can change this number
 
 MAX_DECEL = 5
 
@@ -57,11 +57,7 @@ class WaypointUpdater(object):
         rate = rospy.Rate(30)
         while not rospy.is_shutdown():
             if self.pose and self.base_waypoints:
-                #Get closest waypoint
-                closest_waypoint_idx = self.get_closest_waypoint_idx()
-                #rospy.logwarn("closest_waypoint_idx: {0}".format(closest_waypoint_idx))
-                #rospy.logwarn("length waypoint: {0}".format(len(self.waypoint_2d)))
-                self.publish_waypoints(closest_waypoint_idx)
+                self.publish_waypoints()
             rate.sleep()
 
     def get_closest_waypoint_idx(self):
@@ -87,12 +83,12 @@ class WaypointUpdater(object):
             closest_idx = (closest_idx + 1) % len(self.waypoint_2d)
         return closest_idx
 
-    def publish_waypoints(self, closest_idx):
+    def publish_waypoints(self):
         lane = Lane()
-        lane.waypoints = self.base_waypoints.waypoints[closest_idx: closest_idx + LOOKAHEAD_WPS]
-        #final_lane = self.generate_lane()
-        self.final_waypoints_pub.publish(lane)
-        #self.final_waypoints_pub.publish(final_lane)
+        #lane.waypoints = self.base_waypoints.waypoints[closest_idx: closest_idx + LOOKAHEAD_WPS]
+        final_lane = self.generate_lane()
+        #self.final_waypoints_pub.publish(lane)
+        self.final_waypoints_pub.publish(final_lane)
         
     def generate_lane(self):
         lane = Lane()
@@ -101,10 +97,15 @@ class WaypointUpdater(object):
         
         temp_waypoints = self.base_waypoints.waypoints[closest_idx : farthest_idx]
         
+        #rospy.logwarn("Farthest wp id: {0}".format(farthest_idx))
+        #rospy.logwarn("Stopline wp id: {0}".format(self.stopline_wp_idx))
+        
+        
         if self.stopline_wp_idx == -1 or self.stopline_wp_idx >= farthest_idx or not(self.stopline_wp_idx):
             lane.waypoints = temp_waypoints
         else:
             lane.waypoints = self.decelerate_waypoints(temp_waypoints, closest_idx)
+            #rospy.logwarn("Last wp to red light speed: {0}".format(lane.waypoints[LOOKAHEAD_WPS - 1].twist.twist.linear.x))
             
         return lane
     

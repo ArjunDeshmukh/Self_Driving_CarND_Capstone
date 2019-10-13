@@ -25,6 +25,7 @@ class TLDetector(object):
         self.lights = []
         self.waypoint_2d = None
         self.waypoint_tree = None
+        self.camera_count = 0
 
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
@@ -41,6 +42,7 @@ class TLDetector(object):
 
         config_string = rospy.get_param("/traffic_light_config")
         self.config = yaml.load(config_string)
+        self.is_real = self.config['is_site']
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
@@ -78,7 +80,7 @@ class TLDetector(object):
         self.has_image = True
         self.camera_image = msg
         light_wp, state = self.process_traffic_lights()
-
+        
         '''
         Publish upcoming red lights at camera frequency.
         Each predicted state has to occur `STATE_COUNT_THRESHOLD` number
@@ -93,8 +95,10 @@ class TLDetector(object):
             light_wp = light_wp if state == TrafficLight.RED else -1
             self.last_wp = light_wp
             self.upcoming_red_light_pub.publish(Int32(light_wp))
+            rospy.logwarn("publish upcoming red light wp index: {}".format(light_wp))
         else:
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
+            rospy.logwarn("publish upcoming red light wp index: {}".format(self.last_wp))
         self.state_count += 1
 
     def get_closest_waypoint(self, x, y):
@@ -139,13 +143,19 @@ class TLDetector(object):
         
         if(not self.has_image):
             self.prev_light_loc = None
-            return False
+            return TrafficLight.UNKNOWN
+        
+        if(not self.is_real):
+            #rospy.logwarn("Signal state: {0}".format(light.state))
+            return light.state
 
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
 
         #Get classification
-        return self.light_classifier.get_classification(cv_image)
-        #return light.state
+        signal_state = self.light_classifier.get_classification(cv_image)
+        #rospy.logwarn("Signal state: {0}".format(signal_state))
+        return signal_state
+        
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
